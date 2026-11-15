@@ -1,0 +1,12 @@
+.venv/
+.venv-linux/
+__pycache__/
+*.pyc
+*.db
+.env
+node_modules/
+dist/
+.DS_Store
+backups/
+*.docx
+.cursor/
