@@ -27,6 +27,7 @@ def _to_scan_result(
         detected=True,
         alert_created=result.alert_created,
         deduped=result.deduped,
+        ocr_available=lpr.ocr_available(),
     )
 
 
@@ -41,6 +42,7 @@ def _empty_scan_result(raw: str = "", conf: float = 0.0) -> ScanResult:
         detected=False,
         alert_created=False,
         deduped=False,
+        ocr_available=lpr.ocr_available(),
     )
 
 

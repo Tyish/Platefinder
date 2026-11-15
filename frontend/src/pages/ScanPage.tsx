@@ -118,8 +118,10 @@ export default function ScanPage() {
     try {
       const scan = await api.scanImage(blob, directionRef.current, "live_webcam");
       setResult(scan);
-      if (!scan.detected || !scan.plate_number) {
-        setLiveStatus("No plate detected");
+      if (!scan.ocr_available) {
+        setLiveStatus("OCR not available on server — Tesseract is missing. Use Manual entry for now.");
+      } else if (!scan.detected || !scan.plate_number) {
+        setLiveStatus("No plate detected — hold plate closer, steady, with good light");
       } else if (scan.deduped) {
         setLiveStatus(
           scan.authorized

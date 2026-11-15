@@ -82,6 +82,7 @@ export type ScanResult = {
   detected: boolean;
   alert_created: boolean;
   deduped: boolean;
+  ocr_available: boolean;
 };
 
 export const api = {

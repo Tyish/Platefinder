@@ -20,6 +20,10 @@ except ImportError:
     _HAS_TESS = False
 
 
+def ocr_available() -> bool:
+    return bool(_HAS_TESS and pytesseract is not None)
+
+
 @dataclass
 class LprResult:
     plate_number: str
@@ -65,14 +69,15 @@ def _find_plate_candidates(img: np.ndarray) -> list[np.ndarray]:
     return crops
 
 
-def _ocr_crop(crop: np.ndarray) -> tuple[str, float]:
-    if not _HAS_TESS or pytesseract is None:
+def _ocr_once(image: np.ndarray, psm: int) -> tuple[str, float]:
+    if not ocr_available():
         return "", 0.0
-    crop = cv2.resize(crop, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
-    _, thresh = cv2.threshold(crop, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    config = r"--oem 3 --psm 7 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-    data = pytesseract.image_to_data(thresh, config=config, output_type=pytesseract.Output.DICT)
-    texts = []
+    config = (
+        f"--oem 3 --psm {psm} "
+        "-c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    )
+    data = pytesseract.image_to_data(image, config=config, output_type=pytesseract.Output.DICT)
+    texts: list[str] = []
     confidences: list[float] = []
     for text, conf in zip(data["text"], data["conf"], strict=False):
         t = (text or "").strip()
@@ -88,6 +93,26 @@ def _ocr_crop(crop: np.ndarray) -> tuple[str, float]:
     raw = "".join(texts)
     avg_conf = sum(confidences) / len(confidences) if confidences else 0.0
     return raw, avg_conf / 100.0
+
+
+def _ocr_crop(crop: np.ndarray) -> tuple[str, float]:
+    if not ocr_available():
+        return "", 0.0
+    crop = cv2.resize(crop, None, fx=2.5, fy=2.5, interpolation=cv2.INTER_CUBIC)
+    variants = [
+        cv2.threshold(crop, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1],
+        cv2.threshold(crop, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1],
+        cv2.adaptiveThreshold(crop, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 5),
+    ]
+    best_raw = ""
+    best_conf = 0.0
+    for variant in variants:
+        for psm in (7, 8, 13):
+            raw, conf = _ocr_once(variant, psm)
+            plate = normalize_plate(raw)
+            if len(plate) >= 4 and conf >= best_conf:
+                best_raw, best_conf = raw, conf
+    return best_raw, best_conf
 
 
 def _all_plate_candidates(img: np.ndarray) -> list[np.ndarray]:
@@ -116,8 +141,13 @@ def recognize_from_bytes(data: bytes) -> LprResult:
         best_plate = normalize_plate(raw)
 
     if not best_plate:
+        if not ocr_available():
+            raise ValueError(
+                "OCR is not available on the server. Install Tesseract "
+                "(Docker image includes tesseract-ocr) or enter the plate manually."
+            )
         raise ValueError(
-            "No plate text detected. Install Tesseract OCR (sudo apt install tesseract-ocr) "
+            "No plate text detected. Hold the plate closer/steady with good light, "
             "or enter the plate manually."
         )
 

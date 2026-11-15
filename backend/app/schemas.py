@@ -94,6 +94,7 @@ class ScanResult(BaseModel):
     detected: bool = True
     alert_created: bool = False
     deduped: bool = False
+    ocr_available: bool = True
 
 
 class ManualScanRequest(BaseModel):

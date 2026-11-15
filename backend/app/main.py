@@ -97,11 +97,14 @@ app.include_router(reports.router, prefix="/api")
 
 @app.get("/api/health")
 def health():
+    from app.services import lpr
+
     db = settings.database_url.split(":", 1)[0]
     return {
         "status": "ok",
         "database": db,
         "yolo_configured": bool(settings.yolo_model_path),
+        "ocr_available": lpr.ocr_available(),
         "smtp_enabled": settings.smtp_enabled,
         "sms_enabled": settings.sms_enabled,
     }
