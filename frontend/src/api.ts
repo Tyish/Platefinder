@@ -1,5 +1,8 @@
 const TOKEN_KEY = "lpr_token";
 
+/** Render backend URL on Vercel. Locally leave unset to use Vite `/api` proxy. */
+const API_BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ?? "";
+
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
 }
@@ -16,7 +19,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (!(init.body instanceof FormData) && !headers.has("Content-Type") && init.body) {
     headers.set("Content-Type", "application/json");
   }
-  const res = await fetch(path, { ...init, headers });
+  const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
   if (!res.ok) {
     let detail = res.statusText;
     try {
@@ -129,7 +132,7 @@ export const api = {
   downloadReport: async (kind: "access" | "security") => {
     const path = kind === "access" ? "/api/reports/access-logs.pdf" : "/api/reports/security-summary.pdf";
     const token = getToken();
-    const res = await fetch(path, {
+    const res = await fetch(`${API_BASE}${path}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     if (!res.ok) {
